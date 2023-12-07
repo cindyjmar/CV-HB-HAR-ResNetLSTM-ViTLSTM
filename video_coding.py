@@ -20,15 +20,17 @@ import time
 import pytz
 from datetime import datetime
 import random
-# Definieer je tijdzone, bijvoorbeeld 'Europe/Amsterdam' voor Nederland
+
 random.seed(42)
 np.random.seed(42)
+
+# define timezone
 local_tz = pytz.timezone('Europe/Amsterdam')
 
-# Huidige tijd in UTC krijgen
+# Current time in UTC
 utc_dt = datetime.now(pytz.utc)
 
-# Converteer UTC tijd naar lokale tijd
+# Convert UTC time to local time
 local_dt = utc_dt.astimezone(local_tz)
 
 import random
@@ -91,17 +93,17 @@ def process_video(video_path, maxframes=49, imgsize=(224,224), augment=False):
         cap.set(cv2.CAP_PROP_POS_FRAMES, i)
         ret, frame = cap.read()
         if not ret:
-            frame = np.zeros((imgsize[0], imgsize[1], 3), dtype=np.uint8)  # Gebruik een zero frame als fallback
+            frame = np.zeros((imgsize[0], imgsize[1], 3), dtype=np.uint8)  # use a zero frame as fallback
         else:
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             frame = cv2.resize(frame, imgsize)
             if augment:
                 frame = augment_frame(frame)  # Pas augmentatie toe
             # frame = frame / 255.0
-            # frame = (frame - np.array([0.45, 0.45, 0.45])) / np.array([0.225, 0.225, 0.225])  # Normaliseer
+            # frame = (frame - np.array([0.45, 0.45, 0.45])) / np.array([0.225, 0.225, 0.225])  #normalize
         frames.append(frame)
 
-    # Zero-padding totdat het aantal frames 'maxframes' bereikt
+    # Zero-padding untill maxframes is reached
     while len(frames) < maxframes:
         frames.append(np.zeros((imgsize[0], imgsize[1], 3), dtype=np.uint8))
 
@@ -113,35 +115,34 @@ def process_video(video_path, maxframes=49, imgsize=(224,224), augment=False):
     return np.array(frames, dtype=np.uint8)
 
 
-# Een functie om de video's in een directory te verwerken en labels te extraheren
 def load_videos_and_labels(directory,  augment=False):
 
     start_time = time.time()
     readable_time_start = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(start_time))
     print('start time:', readable_time_start)
-    X = []
-    y = []
-    groups = []  # Deze lijst zal de groep-ID's bevatten
+    X = [] # list with frames
+    y = [] # list with labels
+    groups = []  # list with group id's
     video_files = [f for f in os.listdir(directory) if f.endswith('.mp4')]
     total_videos = len(video_files)
     for index, filename in enumerate(video_files, start=1):
         start = time.time()
-        group_id = filename.split('-')[0]  # Neem aan dat dit de groep-ID format is
-        label = filename.split('-')[-1].split('_')[-2]  # Haal het label op
+        group_id = filename.split('-')[0]  
+        label = filename.split('-')[-1].split('_')[-2]  # get label
         video_path = os.path.join(directory, filename)
         print(f"Loading video {index}/{total_videos}: {filename}, label: {label}, group: {group_id}")
         print(f"Augment: {augment}")
         frames = process_video(video_path, augment=augment)
         X.append(frames)
         y.append(label)
-        groups.append(group_id)  # Voeg de groep-ID toe aan de lijst
+        groups.append(group_id) 
     end_time = time.time()
     readable_time_end = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(end_time))
     elapsed_time = end_time - start_time
     print('end time:', readable_time_end)
     print('elapsed time:', elapsed_time/60, 'minutes')
 
-    return np.array(X), np.array(y), np.array(groups)  # Retourneer X, y en groups
+    return np.array(X), np.array(y), np.array(groups)  # return X, y and groups
 
 output_dir= '/content/drive/MyDrive/ThesisDSS/Thesis_V2/FINAL/data/_frms49_imgsze224'
 extension = '_frms49_imgsze224_augmentfalse_normalizedfalse'
@@ -246,44 +247,35 @@ def plot_label_distribution(y_train, y_val, y_test, save_path):
     _, counts_val = np.unique(y_val, return_counts=True)
     _, counts_test = np.unique(y_test, return_counts=True)
 
-    # Bepaal de posities van de bars
+
     bar_width = 0.25  # Verklein de bar breedte om ruimte te maken voor de derde set bars
     r1 = np.arange(len(counts_train))
     r2 = [x + bar_width for x in r1]
     r3 = [x + bar_width for x in r2]
 
-    # Maak de plot
-    fig, ax = plt.subplots(figsize=(12, 8))  # Vergroot de figuurgrootte indien nodig
+    fig, ax = plt.subplots(figsize=(12, 8))  
 
-    # Maak bars voor elke dataset
     train_bars = ax.bar(r1, counts_train, width=bar_width, label='Training Set', color='b')
     val_bars = ax.bar(r2, counts_val, width=bar_width, label='Validation Set', color='g')
     test_bars = ax.bar(r3, counts_test, width=bar_width, label='Test Set', color='r')
 
-    # Voeg tekst toe boven de bars
     for bars in [train_bars, val_bars, test_bars]:
         for bar in bars:
             yval = bar.get_height()
             ax.text(bar.get_x() + bar.get_width() / 2.0, yval, int(yval), va='bottom', ha='center')
 
-    # Voeg labels en titel toe
     ax.set_xlabel('Labels')
     ax.set_ylabel('Number of Samples')
     ax.set_title('Label Distribution in Training, Validation and Test Sets')
 
-    # Voeg xticks toe
     ax.set_xticks([r + bar_width for r in r1])
     ax.set_xticklabels(unique_labels)
 
-    # Voeg een legende toe
     ax.legend()
 
-    # Organiseer de layout en sla de plot op
     plt.tight_layout()
     plt.savefig(save_path)
 
-    # Toon de plot
     plt.show()
 
-# Gebruik van de functie met een pad voor het opslaan van de plot
 plot_label_distribution(y_train, y_val, y_test, f'{output_dir}/label_distribution_plot.png')
